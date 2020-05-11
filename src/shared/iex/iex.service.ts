@@ -18,15 +18,15 @@ export interface IEXSearchResult {
 @Injectable()
 export class IEXService {
 
-  private apiKey: string;
+  private api_key: string;
   constructor(@Inject('CONFIG_OPTIONS') private options) {
-    this.apiKey = options.apiKey;
+    this.api_key = options.api_key;
   }
 
   private iexURI(route:string, params?: Array<[string,string]>) {
 
     let baseURL = "https://cloud.iexapis.com/stable/";
-    var paramsStr = `?token=${this.apiKey}`;
+    var paramsStr = `?token=${this.api_key}`;
 
     if (params) {
       params.forEach(element => {
@@ -70,5 +70,10 @@ export class IEXService {
     return rp(this.jsonRequest(uri));
   }
 
+  async news(symbol: string) {
+    let route = `/stock/${symbol}/news/last/10`;
+    let uri = this.iexURI(route);
+    return rp(this.jsonRequest(uri));
+  }
 
 }

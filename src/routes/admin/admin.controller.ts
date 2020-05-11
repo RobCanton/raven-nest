@@ -28,4 +28,16 @@ export class AdminController {
     return response;
   }
 
+  @Post('/alert/:alertID')
+  async triggerAlert(@Param('alertID') alertID: string, @Body('price') price: number, @Body('timestamp') timestamp: number) {
+    let response = await this.adminService.triggerAlert(alertID, price, timestamp);
+    return response;
+  }
+
+  @Get('/alerts/:symbol')
+  async getAlertsForSymbol(@Param('symbol') symbol: string) {
+    let response = await this.adminService.getAlertsForSymbol(symbol);
+    return response;
+  }
+
 }

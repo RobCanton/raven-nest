@@ -30,6 +30,7 @@ export class UserController {
   @Delete('/watchlist/:symbol')
   async unsubscribe(@Req() req: Request, @Param('symbol') symbol: string) {
     let uid = req['uid'];
+    console.log(`unwatch: ${symbol}`);
     let response = await this.userService.unsubscribe(uid, symbol.toUpperCase());
     return response;
   }
@@ -44,7 +45,7 @@ export class UserController {
   @Post('/pushtoken/:token')
   async registerPushToken(@Req() req: Request, @Param('token') token: string) {
     let uid = req['uid'];
-    console.log("Token: ", token);
+
     await this.userService.registerPushToken(uid, token);
 
     return {
@@ -70,18 +71,31 @@ export class UserController {
     @Query('symbol') symbol: string,
     @Query('type') type: number,
     @Query('condition') condition: number,
-    @Query('value') value: number) {
-    console.log(`symbol: ${symbol}`);
+    @Query('value') value: number,
+    @Query('reset') reset: number) {
+
     let uid = req['uid'];
-    let response = await this.userService.createAlert(uid, symbol, type, condition, value);
+    let response = await this.userService.createAlert(uid, symbol, type, condition, value, reset);
+    return response;
+  }
+
+  @Patch('/alerts/:alertID')
+  async patchAlert(@Req() req: Request, @Param('alertID') alertID: string,
+    @Query('type') type: number,
+    @Query('condition') condition: number,
+    @Query('value') value: number,
+    @Query('reset') reset: number,
+    @Query('enabled') enabled: number) {
+    let uid = req['uid'];
+    let response = await this.userService.patchAlert(uid, alertID, type, condition, value, reset, enabled);
     return response;
   }
 
   @Delete('/alerts/:alertID')
   async deleteAlert(@Req() req: Request, @Param('alertID') alertID: string) {
-    return {
-      alertID
-    }
+    let uid = req['uid'];
+    let response = await this.userService.deleteAlert(uid, alertID);
+    return response;
   }
 
 

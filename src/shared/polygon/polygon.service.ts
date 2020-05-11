@@ -44,18 +44,15 @@ export interface PolygonStockClose {
 @Injectable()
 export class PolygonService {
 
-  private apiKey: string;
+  private api_key: string;
   constructor(@Inject('CONFIG_OPTIONS') private options, private httpService: HttpService) {
-    this.apiKey = options.apiKey;
+    this.api_key = options.api_key;
   }
-
-  //private apiKey: string = 'P4GNjFy1Uk0a21ZUhjkNF227Kxoud_57KGRTV4';
-
 
   private polygonURI(route:string, params?: Array<[string,string]>) {
 
     let baseURL = "https://api.polygon.io";
-    var paramsStr = `?apiKey=${this.apiKey}`;
+    var paramsStr = `?apiKey=${this.api_key}`;
 
     if (params) {
       params.forEach(element => {
@@ -165,6 +162,15 @@ export class PolygonService {
 
   async stockExchanges() {
     let route = `/v1/meta/exchanges`;
+    let uri = this.polygonURI(route);
+    return rp(this.jsonRequest(uri));
+  }
+
+  async tickerNews(symbol: string) {
+    let route = `/v1/meta/symbols/${symbol}/news`;
+    let params:Array<[string, string]> = [
+      ['perpage', '5']
+    ];
     let uri = this.polygonURI(route);
     return rp(this.jsonRequest(uri));
   }

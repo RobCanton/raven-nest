@@ -198,7 +198,19 @@ export class RedisService {
 
   async zrem(key: string, value: any) {
     return new Promise( (resolve, reject) => {
-      this.client.zadd(key, value, function (err, resp) {
+      this.client.zrem(key, value, function (err, resp) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(resp);
+        }
+      });
+    });
+  }
+
+  async zrange(key: string, min:number, max:number) {
+    return new Promise( (resolve, reject) => {
+      this.client.zrange(key, min, max, function (err, resp) {
         if (err) {
           reject(err);
         } else {
@@ -210,8 +222,14 @@ export class RedisService {
 
   async zrangebyscore(key: string, min:number, max:number) {
     return new Promise( (resolve, reject) => {
-      
-    }))
+      this.client.zrangebyscore(key, min, max, function (err, resp) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(resp);
+        }
+      });
+    });
   }
 
 
@@ -231,6 +249,18 @@ export class RedisService {
   async lrange(key: string, min:Number, max:Number) {
     return new Promise( (resolve, reject) => {
       this.client.lrange(key, min, max, function (err, resp) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(resp);
+        }
+      });
+    });
+  }
+
+  async lrem(key: string, count: number, value: string) {
+    return new Promise( (resolve, reject) => {
+      this.client.lrem(key, count, value, function (err, resp) {
         if (err) {
           reject(err);
         } else {

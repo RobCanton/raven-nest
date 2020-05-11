@@ -57,7 +57,7 @@ export class StockService {
     const lastQuote = await this.polygonService.stockLastQuote(symbol);
 
     let m = moment().tz('America/New_York');
-    console.log(m.format('YYYY-MM-DD'));
+
     let day = m.day();
     var previousClose;
     if (day >= 5 || day == 0) {
@@ -68,10 +68,8 @@ export class StockService {
         diff = -3;
       }
       let fetchDate = m.day(diff).format('YYYY-MM-DD');
-      console.log(`Previous daily open/close: ${fetchDate}`);
       previousClose = await this.polygonService.stockDailyOpenClose(symbol, fetchDate);
     } else {
-      console.log('Previous close');
       previousClose = await this.polygonService.stockPreviousClose(symbol);
     }
 

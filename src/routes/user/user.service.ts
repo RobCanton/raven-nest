@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { RedisService } from '../../shared/redis/redis.service';
 import { PolygonService } from '../../shared/polygon/polygon.service';
 import { StockService } from '../../helpers/stock.service';
+import { AlertService } from '../../helpers/alert.service';
+import { WatcherService } from '../../shared/watcher/watcher.service';
 import { v4 as uuid } from 'uuid';
+import * as short from 'short-uuid';
 
 export interface MarketStatus {
   market: string
@@ -14,7 +17,9 @@ export class UserService {
   constructor(
     private readonly stockService: StockService,
     private readonly redisService: RedisService,
-    private readonly polygonService: PolygonService
+    private readonly polygonService: PolygonService,
+    private readonly alertService: AlertService,
+    private readonly watcherService: WatcherService
   ) {}
 
   async watchlist(uid: string) {
@@ -37,13 +42,13 @@ export class UserService {
   }
 
   async subscribe(uid: string, symbol:string) {
-    console.log(`User ${uid} subscribe to ${symbol}`);
 
     await this.redisService.hset(`watchers:${symbol}`, uid, true);
     await this.redisService.rpush(`user_watchlist:${uid}`, symbol);
     await this.redisService.sadd(`watchlist`, symbol);
 
-    this.redisService.publish('watchlist:add', symbol);
+    //this.redisService.publish('watchlist:add', symbol);
+    this.watcherService.subscribeTo(symbol);
 
     let snapshot = await this.stockService.snapshot(symbol);
 
@@ -52,15 +57,14 @@ export class UserService {
   }
 
   async unsubscribe(uid: string, symbol:string) {
-    console.log(`User ${uid} unsubscribe from ${symbol}`);
-
     // Remove user from watchers & symbol from user watchlist
     await this.redisService.hdel(`watchers:${symbol}`, uid);
-    await this.redisService.srem(`user_watchlist:${uid}`, symbol);
+    await this.redisService.lrem(`user_watchlist:${uid}`, 0, symbol);
 
     // Lookup if symbol has any other watchers
 
-    this.redisService.publish('watchlist:rem', symbol);
+    //this.redisService.publish('watchlist:rem', symbol);
+    this.watcherService.unsubscribeFrom(symbol);
 
 
     /*
@@ -101,38 +105,33 @@ export class UserService {
   }
 
   async getAlerts(uid: string) {
-    let alertHashKeys = await this.redisService.smembers(`alerts:${uid}`) as Array<string>;
-
-    var alertPromises = [];
-    var alertSymbols = [];
-    var alertIDs = [];
-    alertHashKeys.forEach( key => {
-      let split = key.split(':');
-      let symbol = split[0];
-      let alertID = split[1];
-      alertPromises.push(this.redisService.hget(`alerts:${symbol}`, alertID));
-      alertSymbols.push(symbol);
-      alertIDs.push(alertID);
+    let alertIDs = await this.redisService.smembers(`user_alerts:${uid}`) as Array<string>;
+    var promises = [];
+    var response = [];
+    alertIDs.forEach( id => {
+      promises.push(this.redisService.get(`alerts:${id}`));
     })
-
-    let alertStrs = await Promise.all(alertPromises);
-    var alerts = [];
-
+    let alertStrs = await Promise.all(promises);
     for (var i = 0; i < alertStrs.length; i++) {
-      let alertStr = alertStrs[i];
-      let _alert = JSON.parse(alertStr);
-      let alert = {
-        id: alertIDs[i],
-        type: parseInt(_alert.t),
-        condition: parseInt(_alert.c),
-        value: Number(_alert.v),
-        symbol: alertSymbols[i],
-        timestamp: _alert.d
+
+      let alert = JSON.parse(alertStrs[i]);
+      if (alert.u === uid) {
+        let alertObj = {
+          id: alertIDs[i],
+          condition: Math.floor(alert.c),
+          symbol: alert.s,
+          type: Math.floor(alert.t),
+          value: Number(alert.v),
+          timestamp: Number(alert.d),
+          reset: Math.floor(alert.r),
+          enabled: alert.e
+        }
+        response.push(alertObj);
       }
 
-      alerts.push(alert);
     }
-    return alerts;
+
+    return response;
   }
 
   async createAlert(
@@ -140,47 +139,135 @@ export class UserService {
     symbol: string,
     type: number,
     condition: number,
-    value: number) {
+    value: number,
+    reset: number) {
 
-    let alertKey = uuid();
+    let t = Math.floor(Number(type));
+    let c = Math.floor(Number(condition));
+    let v = Number(value);
+    let r = Math.floor(reset);
 
-    console.log(`createAlert: ${alertKey}`);
+    let alertID = short.generate();
 
     let timestamp = Date.now();
-    let alertObj = {
-      t: type,
-      c: condition,
-      v: value,
-      f: 0,
-      u: uid,
-      d: timestamp
+
+    let alert = {
+      s: symbol,
+      t: t, // type
+      c: c, // condition
+      v: v, // value
+      d: timestamp, // dateCreated
+      u: uid, // userID,
+      e: 1, // enabled,
+      r: r
     }
 
-    console.log('alertObj: %j', alertObj);
-    let hashKey = `alerts:${symbol}`;
-    // TODO: replace with fast json
-    let alertData = JSON.stringify(alertObj);
+    console.log("Create alert: %j", alert);
 
-    /*
-    let r = await this.redisService.hset(hashKey, alertKey, alertData);
+    let alertStr = JSON.stringify(alert);
 
-    let userAlertsKey = `alerts:${uid}`;
-    let symbolAlertKey = `${symbol}:${alertKey}`;
-    await this.redisService.sadd(userAlertsKey, symbolAlertKey);
-    */
+    let alertSuffix = this.alertService.alertSuffix(t, c);
+
+    if (!alertSuffix) {
+      return {
+        success: false
+      }
+    }
+
+    await this.redisService.zadd(`alerts_${alertSuffix}:${symbol}`, v, alertID);
+    await this.redisService.set(`alerts:${alertID}`, alertStr);
+    await this.redisService.sadd(`user_alerts:${uid}`, alertID);
+
     return {
-      id: alertKey,
-      type: Math.floor(type),
-      condition: Math.floor(condition),
-      value: Number(value),
+      id: alertID,
+      type: t,
+      condition: c,
+      value: v,
       symbol: symbol,
-      timestamp: timestamp
+      timestamp: timestamp,
+      reset: r,
+      enabled: 1
     }
+
   }
 
-  async deleteAlert(uid: string) {
+  async patchAlert(uid: string, alertID:string, type: number, condition: number, value: number, reset: number, enabled: number) {
+    let alertStr = await this.redisService.get(`alerts:${alertID}`) as string;
+    var alert = JSON.parse(alertStr);
+
+    let alertSuffix = this.alertService.alertSuffix(alert.t, alert.c);
+    if (alertSuffix) {
+      await this.redisService.zrem(`alerts_${alertSuffix}:${alert.s}`, alertID);
+      await this.redisService.zrem(`fired_alerts`, alertID);
+    }
+
+    if (type) {
+      alert.t = Math.floor(type);
+    }
+
+    if (condition) {
+      alert.c = Math.floor(condition);
+    }
+
+    if (value) {
+      alert.v = value;
+    }
+
+    if (reset) {
+      alert.r = Math.floor(reset);
+    }
+
+    if (enabled !== undefined && enabled !== null) {
+      if (enabled > 0) {
+        alert.e = 1;
+      } else {
+        alert.e = 0;
+      }
+
+    }
+
+
+    console.log("Patch alert: %j", alert);
+
+    let patchedAlertStr = JSON.stringify(alert);
+
+    let patchedAlertSuffix = this.alertService.alertSuffix(alert.t, alert.c);
+
+    if (!patchedAlertSuffix) {
+      return {
+        success: false
+      }
+    }
+
+    if (alert.e === 1) {
+      await this.redisService.zadd(`alerts_${patchedAlertSuffix}:${alert.s}`, alert.v, alertID);
+    }
+    await this.redisService.set(`alerts:${alertID}`, patchedAlertStr);
+
     return {
-      success: true
+      id: alertID,
+      type: Math.floor(alert.t),
+      condition: Math.floor(alert.c),
+      value: Number(alert.v),
+      symbol: alert.s,
+      timestamp: Number(alert.d),
+      reset: Math.floor(alert.r),
+      enabled: alert.e
+    }
+
+  }
+
+  async deleteAlert(uid: string, alertID: string) {
+    let alertStr = await this.redisService.get(`alerts:${alertID}`) as string;
+    let alert = JSON.parse(alertStr);
+    let alertSuffix = this.alertService.alertSuffix(alert.t, alert.c);
+
+    await this.redisService.zrem(`alerts_${alertSuffix}:${alert.s}`, alertID);
+    await this.redisService.srem(`user_alerts:${uid}`, alertID);
+    await this.redisService.del(`alerts:${alertID}`);
+
+    return {
+      alertID: alertID
     }
   }
 

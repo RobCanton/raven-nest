@@ -11,7 +11,7 @@ export class ReferenceController {
     return { status: 'reference' }
   }
 
-  @Get('/search/:fragment')
+  @Get('/search/stocks/:fragment')
   async search(@Param('fragment') fragment: string) {
     let response = await this.referenceService.search(fragment);
     return response;
@@ -21,6 +21,18 @@ export class ReferenceController {
   async polygonEnabled(@Body('symbols') symbols: Array<string>) {
     console.log(`check polygon enabled: ${symbols}`)
     let response = await this.referenceService.polygonEnabled(symbols);
+    return response;
+  }
+
+  @Get('/news/:symbol')
+  async getNews(@Param('symbol') symbol: string) {
+    let response = await this.referenceService.getNews(symbol);
+    return response;
+  }
+
+  @Get('/search/crypto/:fragment')
+  async searchCrypto(@Param('fragment') fragment: string) {
+    let response = await this.referenceService.searchCrypto(fragment);
     return response;
   }
 }
