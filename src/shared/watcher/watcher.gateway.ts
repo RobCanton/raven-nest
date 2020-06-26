@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
-import { StockMessage, StockTradeMessage, StockQuoteMessage } from './watcher.model';
+import { ClientMessage, StockMessage, StockTradeMessage, StockQuoteMessage } from './watcher.model';
 
 @WebSocketGateway()
 export class WatcherGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -24,13 +24,13 @@ export class WatcherGateway implements OnGatewayInit, OnGatewayConnection, OnGat
 
   @SubscribeMessage('join')
   handleJoin(client: Socket, payload: string): void {
-    console.log(`Client: ${client.id} request to join ${payload}`);
+    this.logger.log(`Client joined ${payload}: ${client.id} `);
     client.join(payload.toUpperCase());
   }
 
   @SubscribeMessage('leave')
   handleLeave(client: Socket, payload: string): void {
-    console.log(`Client: ${client.id} request to leave ${payload}`);
+    this.logger.log(`Client left ${payload}: ${client.id}`);
     client.leave(payload.toUpperCase());
   }
 
@@ -46,6 +46,14 @@ export class WatcherGateway implements OnGatewayInit, OnGatewayConnection, OnGat
     this.logger.log(`Client connected: ${client.id}`);
   }
 
+  sendMessage(message:ClientMessage) {
+    if (message.room) {
+      this.server.to(message.room).emit(message.event, message.data);
+    } else {
+
+    }
+
+  }
   sendStockTradeMessage(message:StockTradeMessage) {
     this.server.to(message.sym).emit(`T.${message.sym}`, message);
   }
@@ -53,5 +61,8 @@ export class WatcherGateway implements OnGatewayInit, OnGatewayConnection, OnGat
   sendStockQuoteMessage(message:StockQuoteMessage) {
     this.server.to(message.sym).emit(`Q.${message.sym}`, message);
   }
-  
+
+  sendMarketStatus(status:string) {
+    this.server.emit(`market.status`, status);
+  }
 }

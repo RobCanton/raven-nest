@@ -9,6 +9,18 @@ export class RedisService {
     this.client = redis.createClient(options);
   }
 
+  async expire(key: string, timeout: number) {
+    return new Promise ((resolve, reject) => {
+      this.client.expire(key, timeout, (err, resp) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(resp);
+        }
+      })
+    })
+  }
+
   async get(key: string) {
     return new Promise ((resolve, reject) => {
       this.client.get(key, (err, resp) => {
@@ -196,6 +208,7 @@ export class RedisService {
     });
   }
 
+
   async zrem(key: string, value: any) {
     return new Promise( (resolve, reject) => {
       this.client.zrem(key, value, function (err, resp) {
@@ -237,6 +250,18 @@ export class RedisService {
   async rpush(key: string, value: any) {
     return new Promise( (resolve, reject) => {
       this.client.rpush(key, value, function (err, resp) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(resp);
+        }
+      });
+    });
+  }
+
+  async rpushMultiple(key: string, args: any[]) {
+    return new Promise( (resolve, reject) => {
+      this.client.rpush(key, args, function (err, resp) {
         if (err) {
           reject(err);
         } else {

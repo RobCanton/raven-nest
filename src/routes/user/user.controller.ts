@@ -17,21 +17,26 @@ export class UserController {
     return results;
   }
 
-
-
-  @Post('/watchlist/:symbol')
-  async subscribe(@Req() req: Request, @Param('symbol') symbol: string) {
+  @Patch('/watchlist')
+  async patchWatchlist(@Req() req: Request, @Query('symbols') symbols: string) {
     let uid = req['uid'];
+    let symbolsArray = symbols.split(',');
+    return this.userService.patchWatchlist(uid, symbolsArray);
+  }
 
-    let response = await this.userService.subscribe(uid, symbol.toUpperCase());
+
+
+  @Post('/watchlist/:ticker')
+  async subscribe(@Req() req: Request, @Param('ticker') ticker: string) {
+    let uid = req['uid'];
+    let response = await this.userService.subscribe(uid, ticker.toUpperCase());
     return response;
   }
 
-  @Delete('/watchlist/:symbol')
-  async unsubscribe(@Req() req: Request, @Param('symbol') symbol: string) {
+  @Delete('/watchlist/:ticker')
+  async unsubscribe(@Req() req: Request, @Param('ticker') ticker: string) {
     let uid = req['uid'];
-    console.log(`unwatch: ${symbol}`);
-    let response = await this.userService.unsubscribe(uid, symbol.toUpperCase());
+    let response = await this.userService.unsubscribe(uid, ticker.toUpperCase());
     return response;
   }
 

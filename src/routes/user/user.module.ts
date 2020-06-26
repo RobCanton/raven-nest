@@ -3,11 +3,12 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { StockService } from '../../helpers/stock.service';
 import { AlertService } from '../../helpers/alert.service';
+import { MarketService } from '../../helpers/market.service';
 import { AuthMiddleware } from '../../middleware/auth/auth.middleware';
 
 @Module({
   controllers: [UserController],
-  providers: [UserService, StockService, AlertService]
+  providers: [UserService, StockService, AlertService, MarketService]
 })
 export class UserModule {
   configure(consumer: MiddlewareConsumer) {

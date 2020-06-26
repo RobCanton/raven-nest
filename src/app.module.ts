@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AdminModule } from './routes/admin/admin.module';
 import { UserModule } from './routes/user/user.module';
 import { ReferenceModule } from './routes/ref/reference.module';
+import { MarketModule } from './routes/market/market.module';
+import { NewsModule } from './routes/news/news.module';
 import { SocialModule } from './routes/social/social.module';
 import { RedisModule } from './shared/redis/redis.module';
 import { FirebaseModule } from './shared/firebase/firebase.module';
@@ -16,6 +18,9 @@ import { WatcherModule } from './shared/watcher/watcher.module';
 import { LoggerMiddleware } from './middleware/logger/logger.middleware';
 import { TasksService } from './shared/tasks/tasks.service';
 import { AlertService } from './helpers/alert.service';
+import { StockService } from './helpers/stock.service';
+import { WatcherGateway } from './shared/watcher/watcher.gateway';
+
 
 import * as serviceAccount from './service_key.json';
 
@@ -59,10 +64,12 @@ const firebase_security_params = {
     AdminModule,
     UserModule,
     ReferenceModule,
+    MarketModule,
+    NewsModule,
     SocialModule,
   ],
   controllers: [],
-  providers: [TasksService, AlertService],
+  providers: [TasksService, AlertService, WatcherGateway, StockService],
 })
 export class AppModule  implements NestModule {
   configure(consumer: MiddlewareConsumer) {

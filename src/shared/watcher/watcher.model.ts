@@ -1,8 +1,22 @@
+export interface Message {
+  ev: string
+}
+
+export interface ClientMessage {
+  event: string
+  room: string
+  data: any
+}
+
+
+// STOCKS
 export interface StockMessage {
   ev: string
   sym: string
 }
+
 export interface StockTradeMessage extends StockMessage {
+  sym: string
   x: number
   i: string
   z: number
@@ -11,21 +25,24 @@ export interface StockTradeMessage extends StockMessage {
   c: number[]
   t: number
 };
-// // Stocks QUOTE:
-// {
-//     "ev": "Q",              // Event Type
-//     "sym": "MSFT",          // Symbol Ticker
-//     "bx": "4",              // Bix Exchange ID
-//     "bp": 114.125,          // Bid Price
-//     "bs": 100,              // Bid Size
-//     "ax": "7",              // Ask Exchange ID
-//     "ap": 114.128,          // Ask Price
-//     "as": 160,              // Ask Size
-//     "c": 0,                 // Quote Condition
-//     "t": 1536036818784      // Quote Timestamp ( Unix MS )
-// }
+
+export interface StockAggregateMessage extends StockMessage {
+  sym: string
+  v: number
+  av: number
+  op: number
+  vw: number
+  o: number
+  c: number
+  h: number
+  l: number
+  a: number
+  s: number
+  e: number
+}
 
 export interface StockQuoteMessage extends StockMessage {
+  sym: string
   bx: string
   bp: number
   bs: number
@@ -35,3 +52,9 @@ export interface StockQuoteMessage extends StockMessage {
   c: number
   t: number
 };
+
+// FOREX
+
+
+
+// CRYPTO

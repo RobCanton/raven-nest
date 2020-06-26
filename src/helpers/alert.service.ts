@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { RedisService } from '../shared/redis/redis.service';
 import * as promiseReflect from 'promise-reflect';
+import { StockTradeMessage, StockQuoteMessage, StockAggregateMessage } from '../shared/watcher/watcher.model';
+import { FirebaseService } from '../shared/firebase/firebase.service';
 
 export interface Alert {
   s: string
@@ -15,8 +17,24 @@ export interface Alert {
 @Injectable()
 export class AlertService {
 
+  private logger: Logger = new Logger('AlertService');
+
+  private AlertType = {
+    NONE: '0',
+    PRICE: '1',
+    BID: '2',
+    ASK: '3'
+  }
+
+  private PriceCondition = {
+    NONE: '0',
+    IS_OVER: '1',
+    IS_UNDER: '2'
+  }
+
   constructor(
-    private readonly redisService: RedisService
+    private readonly redisService: RedisService,
+    private readonly firebaseService: FirebaseService
   ) {}
 
 
@@ -86,6 +104,72 @@ export class AlertService {
       default:
         return now;
     }
+  }
+
+  async userNotify(uid: string, title: string, body: string) {
+
+    const token = await this.redisService.hget('pushtokens', uid) as string;
+
+    if (token) {
+      await this.firebaseService.sendNotification(token, title, body);
+      return {
+        success: true,
+        status: 'sent'
+      }
+    } else {
+      return {
+        success: false,
+        status: 'failed'
+      }
+    }
+  }
+
+  async triggerAlert(key:string, alertID: string, price:number) {
+  
+    let rem = await this.redisService.zrem(key, alertID);
+
+    let alertStr = await this.redisService.get(`alerts:${alertID}`) as string;
+    let alert:Alert = JSON.parse(alertStr) as Alert;
+
+    this.logger.log(`Alert triggered: ${alert.s}:${alertID}`);
+    await this.firebaseService.writeAlert(alertID, alert);
+
+    let payload = this.notificationPayload(alert.s,
+      alert.t,
+      alert.c,
+      alert.v,
+      price);
+    await this.userNotify(alert.u, payload.title, payload.body);
+
+    let resetTime = this.resetTime(alert.r);
+    if (resetTime) {
+      await this.redisService.zadd(`fired_alerts`, resetTime, alertID);
+    }
+
+
+
+    return;
+  }
+
+  async consumeAggregateMessage(message: StockAggregateMessage) {
+    let priceOverAlertsKey = `alerts_price_over:${message.sym}`;
+
+    let priceOverAlerts = await this.redisService.zrangebyscore(priceOverAlertsKey, 0, message.l) as string[];
+    var promises = [];
+    priceOverAlerts.forEach( alertID => {
+      let triggerAlert = this.triggerAlert(priceOverAlertsKey,alertID, message.l);
+      promises.push(triggerAlert);
+    })
+
+    let priceUnderAlertsKey = `alerts_price_under:${message.sym}`;
+    let priceUnderAlerts = await this.redisService.zrangebyscore(priceUnderAlertsKey, message.h, 999999999) as string[];
+    priceUnderAlerts.forEach( alertID => {
+      let triggerAlert = this.triggerAlert(priceUnderAlertsKey,alertID, message.h);
+      promises.push(triggerAlert);
+    })
+
+    await Promise.all(promises);
+    return;
   }
 
 }

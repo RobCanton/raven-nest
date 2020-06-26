@@ -1,5 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { NewsTopic } from './admin.model';
+
 
 @Controller('admin')
 export class AdminController {
@@ -37,6 +39,24 @@ export class AdminController {
   @Get('/alerts/:symbol')
   async getAlertsForSymbol(@Param('symbol') symbol: string) {
     let response = await this.adminService.getAlertsForSymbol(symbol);
+    return response;
+  }
+
+  @Get('/news/topics')
+  async getNewsTopics() {
+    let response = await this.adminService.getNewsTopics();
+    return response;
+  }
+
+  @Post('/news/topics')
+  async setNewsTopics(@Body('topics') topics:NewsTopic[]) {
+    let response = await this.adminService.setNewsTopics(topics);
+    return response;
+  }
+
+  @Get('/watcher')
+  async getWatcherStatus() {
+    let response = await this.adminService.getWatcherStatus();
     return response;
   }
 

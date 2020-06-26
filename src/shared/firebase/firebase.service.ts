@@ -58,4 +58,12 @@ export class FirebaseService {
     return;
   }
 
+  database() {
+    return firebase.database();
+  }
+
+  firestore() {
+    return firebase.firestore();
+  }
+
 }

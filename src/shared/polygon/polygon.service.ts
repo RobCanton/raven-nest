@@ -1,5 +1,7 @@
 import { Injectable, Inject, HttpService, InternalServerErrorException } from '@nestjs/common';
+import { PolygonStockSnapshot } from './polygon.model';
 import * as rp from 'request-promise';
+import axios, { AxiosResponse } from 'axios';
 
 export interface PolygonTickerWrapper {
   symbol: PolygonTicker
@@ -41,18 +43,38 @@ export interface PolygonStockClose {
   symbol: string
 }
 
+export interface PolygonAggregateResponse {
+  results: PolygonAggregateTick[]
+}
+
+export interface PolygonAggregateTick {
+  T: string
+  v: number
+  o: number
+  c: number
+  h: number
+  l: number
+  t: number
+  n: number
+}
+
+export interface MarketStatus {
+  market: string
+  serverTime: string
+}
+
 @Injectable()
 export class PolygonService {
 
-  private api_key: string;
+  private apiKey: string;
   constructor(@Inject('CONFIG_OPTIONS') private options, private httpService: HttpService) {
-    this.api_key = options.api_key;
+    this.apiKey = options.api_key;
   }
 
   private polygonURI(route:string, params?: Array<[string,string]>) {
 
     let baseURL = "https://api.polygon.io";
-    var paramsStr = `?apiKey=${this.api_key}`;
+    var paramsStr = `?apiKey=${this.apiKey}`;
 
     if (params) {
       params.forEach(element => {
@@ -63,6 +85,24 @@ export class PolygonService {
     return `${baseURL}${route}${paramsStr}`;
   }
 
+  private buildURI(route?:string, params?: Array<[string,string]>) {
+
+    let baseURL = "https://api.polygon.io";
+    var paramsStr = `?apiKey=${this.apiKey}`;
+
+    if (params) {
+      params.forEach(element => {
+        paramsStr += `&${element[0]}=${element[1]}`;
+      });
+    }
+
+    if (route) {
+      return `${baseURL}${route}${paramsStr}`;
+    } else {
+      return `${baseURL}${paramsStr}`;
+    }
+  }
+
   private jsonRequest(uri: string) {
     return {
       uri: uri,
@@ -70,7 +110,7 @@ export class PolygonService {
     }
   }
 
-  async marketStatus() {
+  async marketStatus(): Promise<MarketStatus> {
     let route = `/v1/marketstatus/now`;
     let uri = this.polygonURI(route);
     return rp(this.jsonRequest(uri));
@@ -96,7 +136,6 @@ export class PolygonService {
   async tickerDetails(ticker: string):Promise<PolygonStockDetails> {
     let route = `/v1/meta/symbols/${ticker}/company`;
     let uri = this.polygonURI(route);
-    console.log(`uri: ${uri}`);
     return rp(this.jsonRequest(uri))
   }
 
@@ -106,6 +145,7 @@ export class PolygonService {
     return rp(this.jsonRequest(uri)).then ( results => {
       return results.last;
     }).catch ( e => {
+      console.log(e);
       return {}
     })
   }
@@ -116,6 +156,7 @@ export class PolygonService {
     return rp(this.jsonRequest(uri)).then ( results => {
       return results.last;
     }).catch ( e => {
+      console.log(e);
       return {}
     })
   }
@@ -133,6 +174,7 @@ export class PolygonService {
         symbol: result.symbol,
       }
     }).catch ( e => {
+      console.log(e);
       return {}
     })
   }
@@ -156,8 +198,28 @@ export class PolygonService {
       return response;
 
     }).catch (e => {
+      console.log(e);
       return {}
     })
+  }
+
+  async stockSnapshotSingle(ticker: string): Promise<PolygonStockSnapshot> {
+
+    let route = `/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}`;
+    let uri = this.buildURI(route);
+    try {
+      let response:AxiosResponse = await axios.get(uri);
+      return response.data.ticker;
+    } catch (exception) {
+      return null;
+    }
+
+  }
+
+  async stockAggregates(ticker: string, multiplier: number, timespan:string, from: string, to: string):Promise<PolygonAggregateResponse> {
+    let route = `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${from}/${to}`;
+    let uri = this.polygonURI(route);
+    return rp(this.jsonRequest(uri));
   }
 
   async stockExchanges() {
@@ -174,6 +236,9 @@ export class PolygonService {
     let uri = this.polygonURI(route);
     return rp(this.jsonRequest(uri));
   }
+
+
+
 
   /*
 

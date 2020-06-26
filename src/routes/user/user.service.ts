@@ -3,6 +3,7 @@ import { RedisService } from '../../shared/redis/redis.service';
 import { PolygonService } from '../../shared/polygon/polygon.service';
 import { StockService } from '../../helpers/stock.service';
 import { AlertService } from '../../helpers/alert.service';
+import { MarketService, MarketType } from '../../helpers/market.service';
 import { WatcherService } from '../../shared/watcher/watcher.service';
 import { v4 as uuid } from 'uuid';
 import * as short from 'short-uuid';
@@ -19,36 +20,80 @@ export class UserService {
     private readonly redisService: RedisService,
     private readonly polygonService: PolygonService,
     private readonly alertService: AlertService,
-    private readonly watcherService: WatcherService
+    private readonly watcherService: WatcherService,
+    private readonly marketService: MarketService
   ) {}
 
   async watchlist(uid: string) {
-    let results = await this.redisService.lrange(`user_watchlist:${uid}`, 0 , -1) as Array<string>;
-
+    let watchlist = await this.redisService.lrange(`user_watchlist:${uid}`, 0 , -1) as string[];
     var promises = [];
-
-    results.forEach( symbol => {
-      promises.push(this.stockService.snapshot(symbol));
-    })
-
-    let response = await Promise.all(promises);
 
     let alerts = await this.getAlerts(uid);
 
+    let marketStatus = await this.redisService.get('market-status') as string;
+
+    let newsTopicStrs = await this.redisService.lrange('news_topics', 0 , -1) as Array<string>;
+    var newsTopics = [];
+    newsTopicStrs.forEach( topic => {
+      let split = topic.split(':');
+      newsTopics.push({
+        name: split[0],
+        query: split[1]
+      })
+    })
+
+    let mostActiveStocks = await this.redisService.lrange('list:mostactivestocks', 0, -1) as string[];
+
+    let stocklist = [...new Set([...watchlist ,...mostActiveStocks])];
+
+    var snapshotPromises = [];
+
+    stocklist.forEach( symbol => {
+      let snapshotPromise = this.stockService.snapshot(symbol);
+      snapshotPromises.push(snapshotPromise);
+    })
+
+    let snapshots = await Promise.all(snapshotPromises);
+    var snapshotDict = {};
+    snapshots.forEach( snapshot => {
+      snapshotDict[snapshot.symbol] = snapshot;
+    })
     return {
-      stocks: response,
-      alerts: alerts
+      marketStatus: marketStatus,
+      alerts: alerts,
+      news: {
+        topics: newsTopics
+      },
+      lists: {
+        watchlist: watchlist,
+        mostActiveStocks: mostActiveStocks,
+      },
+      snapshots: snapshotDict
     };
+  }
+
+  async patchWatchlist(uid:string, symbols: string[]) {
+    await this.redisService.del(`user_watchlist:${uid}`);
+    await this.redisService.rpushMultiple(`user_watchlist:${uid}`, symbols);
+    return true;
   }
 
   async subscribe(uid: string, symbol:string) {
 
-    await this.redisService.hset(`watchers:${symbol}`, uid, true);
-    await this.redisService.rpush(`user_watchlist:${uid}`, symbol);
-    await this.redisService.sadd(`watchlist`, symbol);
+    let marketType = this.marketService.typeForSymbol(symbol);
+    console.log("MarketType: ", marketType.toString());
 
-    //this.redisService.publish('watchlist:add', symbol);
-    this.watcherService.subscribeTo(symbol);
+    await this.redisService.hset(`${marketType}_watchers:${symbol}`, uid, true);
+    await this.redisService.rpush(`user_watchlist:${uid}`, symbol);
+    await this.redisService.sadd(`${marketType}_watchlist`, symbol);
+
+    switch (marketType) {
+    case MarketType.stocks:
+      this.watcherService.subscribeTo(symbol);
+      break;
+    default:
+      return
+    }
 
     let snapshot = await this.stockService.snapshot(symbol);
 
@@ -58,24 +103,18 @@ export class UserService {
 
   async unsubscribe(uid: string, symbol:string) {
     // Remove user from watchers & symbol from user watchlist
-    await this.redisService.hdel(`watchers:${symbol}`, uid);
+    let marketType = this.marketService.typeForSymbol(symbol);
+
+    await this.redisService.hdel(`${marketType}_watchers:${symbol}`, uid);
     await this.redisService.lrem(`user_watchlist:${uid}`, 0, symbol);
 
-    // Lookup if symbol has any other watchers
-
-    //this.redisService.publish('watchlist:rem', symbol);
-    this.watcherService.unsubscribeFrom(symbol);
-
-
-    /*
-    let watchers = await this.redisService.hgetall(`watchers:${symbol}`);
-
-    if (watchers) {
-      console.log(`${symbol} still has watchers`);
-    } else {
-      console.log(`${symbol} has no watchers`);
-      await this.redisService.srem(`watchlist`, symbol);
-    }*/
+    switch (marketType) {
+    case MarketType.stocks:
+      this.watcherService.unsubscribeFrom(symbol);
+      break
+    default:
+      break
+    }
 
     return {
       unsubscribed: true

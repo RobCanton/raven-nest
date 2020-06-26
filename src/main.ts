@@ -1,10 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { TasksService } from './shared/tasks/tasks.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // app.useStaticAssets(join(__dirname, '..', '_site'));
-  // app.setViewEngine('html');
+  app
+      .select(AppModule)
+      .get(TasksService)
+      .init();
 
   await app.listen(3004);
 }

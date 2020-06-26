@@ -64,14 +64,14 @@ export class IEXService {
     });
   }
 
-  async listMostActive() {
+  async listMostActive():Promise<IEXStockQuote[]> {
     let route = `/stock/market/list/mostactive`;
     let uri = this.iexURI(route);
     return rp(this.jsonRequest(uri));
   }
 
-  async news(symbol: string) {
-    let route = `/stock/${symbol}/news/last/10`;
+  async news(symbol: string, count: number) {
+    let route = `/stock/${symbol}/news/last/${count}`;
     let uri = this.iexURI(route);
     return rp(this.jsonRequest(uri));
   }

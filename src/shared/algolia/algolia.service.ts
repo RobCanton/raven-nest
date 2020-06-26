@@ -6,15 +6,29 @@ import axios from 'axios';
 export class AlgoliaService {
 
   private client;
+  private forexIndex;
   private cryptoIndex;
 
   constructor() {
     this.client = algoliasearch('J0PSFDMNOG', '8f13a38771fa3311cf44714087746885');
+    this.forexIndex = this.client.initIndex('Forex');
     this.cryptoIndex = this.client.initIndex('Crypto');
+    this.cryptoIndex.setSettings({
+      attributesForFaceting: [
+        'currency', 'active' // or 'filterOnly(brand)' for filtering purposes only
+      ]
+    })
   }
 
-  async search(fragment: string) {
-    let hits = await this.cryptoIndex.search(fragment);
+  async searchForex(fragment: string) {
+    let hits = await this.forexIndex.search(fragment);
+    return hits;
+  }
+
+  async searchCrypto(fragment: string) {
+    let hits = await this.cryptoIndex.search(fragment, {
+      filters: 'currency:USD AND active:true'
+    });
     return hits;
   }
 
