@@ -15,7 +15,7 @@ export interface StockMessage {
   sym: string
 }
 
-export interface StockTradeMessage extends StockMessage {
+export interface StockTradeMessage extends Message {
   sym: string
   x: number
   i: string
@@ -26,7 +26,7 @@ export interface StockTradeMessage extends StockMessage {
   t: number
 };
 
-export interface StockAggregateMessage extends StockMessage {
+export interface StockAggregateMessage extends Message {
   sym: string
   v: number
   av: number
@@ -41,7 +41,7 @@ export interface StockAggregateMessage extends StockMessage {
   e: number
 }
 
-export interface StockQuoteMessage extends StockMessage {
+export interface StockQuoteMessage extends Message {
   sym: string
   bx: string
   bp: number
@@ -54,7 +54,60 @@ export interface StockQuoteMessage extends StockMessage {
 };
 
 // FOREX
+export interface ForexQuoteMessage extends Message {
+  p: string
+  x: string
+  a: number
+  b: number
+  t: number
+}
 
-
+export interface ForexAggregateMessage extends Message {
+  pair: string
+  o: number
+  c: number
+  h: number
+  l: number
+  v: number
+  s: number
+}
 
 // CRYPTO
+export interface CryptoQuoteMessage extends Message {
+  pair: string
+  lp: number
+  ls: number
+  bp: number
+  bs: number
+  ap: number
+  as: number
+  t: number
+  x: number
+  r: number
+}
+
+export interface CryptoTradeMessage extends Message {
+  pair: string
+  p: number
+  t: number
+  s: number
+  c: number[]
+  i: string
+  x: number
+  r: number
+}
+
+export interface CryptoAggregateMessage extends Message {
+  pair: string
+  o: number
+  ox: number
+  h: number
+  hx: number
+  l: number
+  lx: number
+  c: number
+  cx: number
+  v: number
+  s: number
+  e: number
+}

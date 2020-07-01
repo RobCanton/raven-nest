@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
-import { MarketType } from '../../../helpers/market.service';
+import { MarketType } from '../../market/market.model';
+import { MarketService } from '../../market/market.service';
 import { RedisService } from '../../redis/redis.service';
 import { WatcherDelegate } from '../watcher.service';
 import * as Models from '../watcher.model';
@@ -7,7 +8,7 @@ import * as WebSocket from "ws"
 
 export abstract class Watcher {
 
-    private marketType: MarketType;
+    protected marketType: MarketType;
     protected delegate: WatcherDelegate;
     protected logger: Logger;
 
@@ -20,6 +21,7 @@ export abstract class Watcher {
       marketType: MarketType,
       delegate: WatcherDelegate,
       apiKey: string,
+      protected readonly marketService: MarketService,
       protected readonly redisService: RedisService
     ) {
       this.delegate = delegate;
@@ -47,7 +49,6 @@ export abstract class Watcher {
         results.forEach( symbol => {
           this.subscribeTo(symbol);
         })
-
       })
 
       this.ws.on('pong', () => {

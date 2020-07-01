@@ -85,6 +85,7 @@ export class TasksService extends NestSchedule {
   //   tz: 'America/New_York'
   // })
   async updateMostActiveStocks() {
+    
     let mostActiveStocksKey = 'list:mostactivestocks';
     await this.watcherService.unwatchList(mostActiveStocksKey);
 
@@ -112,7 +113,7 @@ export class TasksService extends NestSchedule {
     await Promise.all(promises);
 
     mostActiveStocksPE.forEach( symbol => {
-      this.watcherService.subscribeTo(symbol);
+      //this.watcherService.subscribeTo(symbol);
     })
 
     //this.redisService.publish('watchlist:add', symbol);

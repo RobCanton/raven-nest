@@ -6,7 +6,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { PolygonService, PolygonStockDetails,
   PolygonTickerWrapper, PolygonTicker,
   MarketStatus, PolygonAggregateResponse } from '../shared/polygon/polygon.service';
-import { PolygonStockSnapshot } from '../shared/polygon/polygon.model'
+import { Polygon } from '../shared/polygon/polygon.model'
 import { IEXService } from '../shared/iex/iex.service';
 import * as promiseReflect from 'promise-reflect';
 import * as moment from 'moment';
@@ -75,7 +75,7 @@ export class StockService {
 
     let intraday = await this.stockAggregateIntraday(symbol, 30);
 
-    let snapshot = await this.polygonService.stockSnapshotSingle(symbol) as PolygonStockSnapshot;
+    let snapshot = await this.polygonService.stockSnapshotSingle(symbol) as Polygon.StockSnapshot;
 
     if (snapshot) {
       let day:StockDailyStats = {

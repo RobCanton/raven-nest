@@ -3,7 +3,8 @@ import { RedisService } from '../../shared/redis/redis.service';
 import { PolygonService } from '../../shared/polygon/polygon.service';
 import { StockService } from '../../helpers/stock.service';
 import { AlertService } from '../../helpers/alert.service';
-import { MarketService, MarketType } from '../../helpers/market.service';
+import { MarketType } from '../../shared/market/market.model';
+import { MarketService } from '../../shared/market/market.service';
 import { WatcherService } from '../../shared/watcher/watcher.service';
 import { v4 as uuid } from 'uuid';
 import * as short from 'short-uuid';
@@ -48,16 +49,24 @@ export class UserService {
 
     var snapshotPromises = [];
 
+    console.log(`stocklist: ${stocklist}`);
     stocklist.forEach( symbol => {
-      let snapshotPromise = this.stockService.snapshot(symbol);
+      let snapshotPromise = this.marketService.snapshot(symbol);
       snapshotPromises.push(snapshotPromise);
     })
 
     let snapshots = await Promise.all(snapshotPromises);
-    var snapshotDict = {};
+
+    var snapshotsDict = {};
+    snapshotsDict = {}
+    snapshotsDict[MarketType.stocks] = {}
+    snapshotsDict[MarketType.forex] = {}
+    snapshotsDict[MarketType.crypto] = {}
+
     snapshots.forEach( snapshot => {
-      snapshotDict[snapshot.symbol] = snapshot;
+      snapshotsDict[snapshot.marketType][snapshot.symbol] = snapshot;
     })
+
     return {
       marketStatus: marketStatus,
       alerts: alerts,
@@ -68,7 +77,7 @@ export class UserService {
         watchlist: watchlist,
         mostActiveStocks: mostActiveStocks,
       },
-      snapshots: snapshotDict
+      snapshots: snapshotsDict
     };
   }
 
@@ -81,21 +90,13 @@ export class UserService {
   async subscribe(uid: string, symbol:string) {
 
     let marketType = this.marketService.typeForSymbol(symbol);
-    console.log("MarketType: ", marketType.toString());
-
     await this.redisService.hset(`${marketType}_watchers:${symbol}`, uid, true);
     await this.redisService.rpush(`user_watchlist:${uid}`, symbol);
     await this.redisService.sadd(`${marketType}_watchlist`, symbol);
 
-    switch (marketType) {
-    case MarketType.stocks:
-      this.watcherService.subscribeTo(symbol);
-      break;
-    default:
-      return
-    }
+    await this.watcherService.subscribeTo(symbol, marketType);
 
-    let snapshot = await this.stockService.snapshot(symbol);
+    let snapshot = await this.marketService.snapshot(symbol);
 
     return snapshot;
 
@@ -108,13 +109,7 @@ export class UserService {
     await this.redisService.hdel(`${marketType}_watchers:${symbol}`, uid);
     await this.redisService.lrem(`user_watchlist:${uid}`, 0, symbol);
 
-    switch (marketType) {
-    case MarketType.stocks:
-      this.watcherService.unsubscribeFrom(symbol);
-      break
-    default:
-      break
-    }
+    await this.watcherService.unsubscribeFrom(symbol, marketType);
 
     return {
       unsubscribed: true

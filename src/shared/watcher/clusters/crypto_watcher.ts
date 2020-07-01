@@ -4,17 +4,17 @@ import { MarketService } from '../../market/market.service';
 import { RedisService } from '../../redis/redis.service';
 import { Watcher } from './watcher';
 import { WatcherDelegate } from '../watcher.service';
-import { Message, StockTradeMessage, StockQuoteMessage, StockAggregateMessage } from '../watcher.model';
+import { Message, CryptoQuoteMessage, CryptoTradeMessage, CryptoAggregateMessage } from '../watcher.model';
 
-export class StocksWatcher extends Watcher {
+export class CryptoWatcher extends Watcher {
 
   constructor(
     delegate: WatcherDelegate,
     apiKey: string,
-    marketService:MarketService,
+    marketService: MarketService,
     redisService: RedisService) {
 
-    super(MarketType.stocks, delegate, apiKey, marketService, redisService);
+    super(MarketType.crypto, delegate, apiKey, marketService, redisService);
   }
 
   handleMessage(msg: Message) {
@@ -25,26 +25,27 @@ export class StocksWatcher extends Watcher {
     //this.logger.log(`Message [${msg}]`);
 
     switch (msg.ev) {
-      case "T":
-      let trade = msg as StockTradeMessage;
-      this.delegate.sendMessage(msg.ev, trade.sym, trade);
+      case "XQ":
+      let quote = msg as CryptoQuoteMessage;
+
+      this.delegate.sendMessage(msg.ev, quote.pair, quote);
       break;
-      case "Q":
-      let quote = msg as StockQuoteMessage;
-      this.delegate.sendMessage(msg.ev, quote.sym, quote);
+      case "XT":
+      let trade = msg as CryptoTradeMessage;
+      this.delegate.sendMessage(msg.ev, trade.pair, trade);
       break;
-      case "A":
-      let aggregate = msg as StockAggregateMessage;
-      this.delegate.sendMessage(msg.ev, aggregate.sym, aggregate);
+      case "XA":
+      let aggregate = msg as CryptoAggregateMessage;
+      this.delegate.sendMessage(msg.ev, aggregate.pair, aggregate);
       break;
       default:
       break;
     }
   }
 
-  async subscribeTo(symbol:string) {
+  async subscribeTo(symbol: string) {
     let socketSymbol = await this.marketService.socketSymbol(symbol);
-    this.sendWebsocketMessage(`{"action":"subscribe","params":"Q.${socketSymbol},T.${socketSymbol},A.${socketSymbol}"}`);
+    this.sendWebsocketMessage(`{"action":"subscribe","params":"XQ.${socketSymbol},XT.${socketSymbol},XA.${socketSymbol}"}`);
   }
 
   async unsubscribeFrom(symbol: string) {
@@ -56,7 +57,7 @@ export class StocksWatcher extends Watcher {
         return;
       } else {
         this.logger.log(`Unsubscribe from ${symbol}`);
-        this.sendWebsocketMessage(`{"action":"unsubscribe","params":"Q.${socketSymbol},T.${socketSymbol},A.${socketSymbol}"}`);
+        this.sendWebsocketMessage(`{"action":"unsubscribe","params":"XQ.${socketSymbol},XT.${socketSymbol},XA.${socketSymbol}"}`);
         await this.redisService.srem(`${this.marketType}_watchlist`, symbol);
       }
     } catch (error) {

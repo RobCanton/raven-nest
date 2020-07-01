@@ -6,7 +6,6 @@ import { AppService } from './app.service';
 import { AdminModule } from './routes/admin/admin.module';
 import { UserModule } from './routes/user/user.module';
 import { ReferenceModule } from './routes/ref/reference.module';
-import { MarketModule } from './routes/market/market.module';
 import { NewsModule } from './routes/news/news.module';
 import { SocialModule } from './routes/social/social.module';
 import { RedisModule } from './shared/redis/redis.module';
@@ -15,8 +14,10 @@ import { PolygonModule } from './shared/polygon/polygon.module';
 import { IEXModule } from './shared/iex/iex.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { WatcherModule } from './shared/watcher/watcher.module';
+import { AlgoliaModule } from './shared/algolia/algolia.module';
 import { LoggerMiddleware } from './middleware/logger/logger.middleware';
 import { TasksService } from './shared/tasks/tasks.service';
+import { MarketService } from './shared/market/market.service';
 import { AlertService } from './helpers/alert.service';
 import { StockService } from './helpers/stock.service';
 import { WatcherGateway } from './shared/watcher/watcher.gateway';
@@ -58,18 +59,21 @@ const firebase_security_params = {
     IEXModule.register({
       api_key: 'pk_03e4439873e34bcc9aa48865912ad73d'
     }),
+    AlgoliaModule.register({
+      app_id: 'J0PSFDMNOG',
+      api_key: '8f13a38771fa3311cf44714087746885'
+    }),
     WatcherModule.register({
       api_key: 'P4GNjFy1Uk0a21ZUhjkNF227Kxoud_57KGRTV4'
     }),
     AdminModule,
     UserModule,
     ReferenceModule,
-    MarketModule,
     NewsModule,
     SocialModule,
   ],
   controllers: [],
-  providers: [TasksService, AlertService, WatcherGateway, StockService],
+  providers: [TasksService, AlertService, WatcherGateway, StockService, MarketService],
 })
 export class AppModule  implements NestModule {
   configure(consumer: MiddlewareConsumer) {

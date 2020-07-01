@@ -1,5 +1,5 @@
 import { Injectable, Inject, HttpService, InternalServerErrorException } from '@nestjs/common';
-import { PolygonStockSnapshot } from './polygon.model';
+import { Polygon } from './polygon.model';
 import * as rp from 'request-promise';
 import axios, { AxiosResponse } from 'axios';
 
@@ -203,7 +203,7 @@ export class PolygonService {
     })
   }
 
-  async stockSnapshotSingle(ticker: string): Promise<PolygonStockSnapshot> {
+  async stockSnapshotSingle(ticker: string): Promise<Polygon.StockSnapshot> {
 
     let route = `/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}`;
     let uri = this.buildURI(route);
@@ -238,41 +238,45 @@ export class PolygonService {
   }
 
 
-
-
-  /*
-
-
-exports.historicalTrades = function(symbol, date, limit) {
-  let route = `/v2/ticks/stocks/trades/${symbol}/${date}`;
-  let params = {
-    date: '2020-04-20',
-    limit: limit
-  }
-  let uri = polygonURI(route, params);
-
-  var options = {
-    uri: uri,
-    json: true
+  // Crypto Market
+  async cryptoSnapshotSingle(ticker: string): Promise<Polygon.Crypto.Snapshot> {
+    let route = `/v2/snapshot/locale/global/markets/crypto/tickers/${ticker}`;
+    let uri = this.buildURI(route);
+    try {
+      let response:AxiosResponse = await axios.get(uri);
+      return response.data.ticker;
+    } catch (exception) {
+      return null;
+    }
   }
 
-  return rp(options);
-}
 
-exports.stockExchanges = function() {
-  let route = `/v1/meta/exchanges`;
-
-  let uri = polygonURI(route);
-
-  var options = {
-    uri: uri,
-    json: true
+  // Forex Market
+  async forexSnapshotSingle(ticker: string): Promise<Polygon.Forex.Snapshot> {
+    let route = `/v1/conversion/USD/CAD`;
+    let params:Array<[string, string]> = [
+      ['amount', '1'], ['precision', '2']
+    ];
+    let uri = this.buildURI(route, params);
+    try {
+      let response:AxiosResponse = await axios.get(uri);
+      return response.data;
+    } catch(exception) {
+      console.log("exception: ", exception);
+      return null;
+    }
   }
 
-  return rp(options);
-}
-
-
-  */
-
+  async forexLastQuote(from:string, to: string):Promise<Polygon.Forex.Quote> {
+    let route = `/v1/last_quote/currencies/${from}/${to}`;
+    let uri = this.buildURI(route);
+    try {
+      let response:AxiosResponse = await axios.get(uri);
+      let quoteResponse:Polygon.Forex.QuoteResponse = response.data;
+      return quoteResponse.last;
+    } catch(exception) {
+      console.log("exception: ", exception);
+      return null;
+    }
+  }
 }
